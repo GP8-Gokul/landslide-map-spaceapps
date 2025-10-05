@@ -4,19 +4,19 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 
 export default function Landslide() {
-  const [hazardData, setHazardData] = useState(null);
+  const [susceptibilityData, setSusceptibilityData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch from your Vercel serverless function
+        // Call your Vercel serverless function
         const res = await axios.get("/api/landslide");
-        setHazardData(res.data);
+        setSusceptibilityData(res.data);
       } catch (err) {
         console.error("Error fetching hazard data:", err);
-        setError("Failed to fetch NASA hazard data.");
+        setError("Failed to fetch landslide susceptibility data.");
       } finally {
         setLoading(false);
       }
@@ -25,32 +25,23 @@ export default function Landslide() {
     fetchData();
   }, []);
 
-  // Color based on severity
-  const getColor = (level) => {
-    switch (level) {
-      case "HIGH":
-        return "red";
-      case "MODERATE":
-        return "orange";
-      case "LOW":
-        return "yellow";
-      default:
-        return "gray";
-    }
+  // Color based on susceptibility value
+  const getColor = (val) => {
+    if (val >= 0.8) return "red";       // High susceptibility
+    if (val >= 0.4) return "orange";    // Moderate
+    return "yellow";                     // Low
   };
 
-  // Style each polygon
   const style = (feature) => ({
-    color: getColor(feature.properties?.HAZ_SEV),
+    color: getColor(feature.properties?.SUSCEPT || 0),
+    fillOpacity: 0.5,
     weight: 1,
-    fillOpacity: 0.6,
   });
 
-  // Popup for each polygon
   const onEachFeature = (feature, layer) => {
     if (feature.properties) {
       layer.bindPopup(
-        `<b>Severity:</b> ${feature.properties.HAZ_SEV || "Unknown"}`
+        `<b>Susceptibility:</b> ${feature.properties?.SUSCEPT || "Unknown"}`
       );
     }
   };
@@ -59,7 +50,7 @@ export default function Landslide() {
     <div style={{ height: "100vh", width: "100%" }}>
       {loading && (
         <div className="flex justify-center items-center h-full text-lg">
-          Loading NASA hazard data...
+          Loading landslide data...
         </div>
       )}
       {error && (
@@ -67,13 +58,21 @@ export default function Landslide() {
           {error}
         </div>
       )}
-      {!loading && !error && hazardData && (
-        <MapContainer center={[20, 78]} zoom={4} style={{ height: "100%", width: "100%" }}>
+      {!loading && !error && susceptibilityData && (
+        <MapContainer
+          center={[20, 78]} // Centered over India
+          zoom={4}
+          style={{ height: "100%", width: "100%" }}
+        >
           <TileLayer
             attribution='© OpenStreetMap contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <GeoJSON data={hazardData} style={style} onEachFeature={onEachFeature} />
+          <GeoJSON
+            data={susceptibilityData}
+            style={style}
+            onEachFeature={onEachFeature}
+          />
         </MapContainer>
       )}
     </div>
